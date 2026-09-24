@@ -33,6 +33,12 @@ h1{margin:7px 0;font-size:clamp(38px,8vw,68px);color:#e53935;text-shadow:4px 4px
 .task p{text-align:center;font-weight:800;margin:8px}
 .dropzone{min-height:80px;background:#fff;border:3px dashed #e53935;border-radius:17px;padding:9px;margin-top:15px}
 .dropzone.over{background:#fff3d5;border-color:#1565c0}
+.number-list{display:flex;flex-direction:column;gap:10px;margin-top:15px}
+.number-item{background:#fff;border:3px solid #1565c0;border-radius:18px;padding:12px;display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:12px;box-shadow:0 4px 8px #0002}
+.number-select{width:58px;height:48px;border:3px solid #e53935;border-radius:14px;background:#fff8f8;color:#1565c0;font-size:21px;font-weight:1000;text-align:center;cursor:pointer}
+.number-select:focus{outline:3px solid #90caf9;outline-offset:2px}
+.number-item .lafaz{font-size:17px;font-weight:900;line-height:1.35}
+.number-item .arabic{margin-left:0}
 .item{background:#fff;border:3px solid #1565c0;border-radius:16px;padding:13px;margin:7px 0;
  display:flex;align-items:center;gap:10px;font-size:17px;font-weight:900;cursor:grab;
  box-shadow:0 4px 8px #0002;user-select:none}
@@ -52,7 +58,7 @@ h1{margin:7px 0;font-size:clamp(38px,8vw,68px);color:#e53935;text-shadow:4px 4px
 .info-box:nth-child(2){background:#ffebee}
 footer{margin-top:25px;background:#fff;border:6px solid #ffd54f;border-radius:30px;text-align:center;padding:23px;box-shadow:0 10px 22px #003b6740}
 .group{font-size:36px;font-weight:1000;color:#e53935}.members{font-size:21px;font-weight:900;color:#1565c0;line-height:1.7}
-@media(max-width:700px){.stickers{right:3px;top:105px}.sticker{width:55px;height:55px;font-size:30px}.flower{font-size:52px}.info-grid{grid-template-columns:1fr}.wrap{padding:14px}.arabic{font-size:21px}}
+@media(max-width:700px){.stickers{right:3px;top:105px}.sticker{width:55px;height:55px;font-size:30px}.flower{font-size:52px}.info-grid{grid-template-columns:1fr}.wrap{padding:14px}.arabic{font-size:21px}.number-item{grid-template-columns:52px 1fr;gap:9px}.number-item .lafaz{font-size:15px}.number-item>div:last-child{display:none}.number-select{width:52px;height:44px}}
 </style>
 </head>
 <body>
@@ -73,8 +79,8 @@ footer{margin-top:25px;background:#fff;border:6px solid #ffd54f;border-radius:30
 </header>
 
 <div class="intro">
- <strong>Cara bermain:</strong> Seret setiap kad dan lepaskan ke dalam kotak mengikut <strong>susunan yang betul</strong>.
- Selepas siap, tekan <strong>SEMAK JAWAPAN</strong>. 🌟
+ <strong>Cara bermain:</strong> Untuk latihan <strong>Azan</strong>, pilih nombor susunan pada setiap lafaz (1, 2, 3 dan seterusnya).
+ Untuk <strong>Iqamat</strong>, susun kad seperti biasa. Selepas siap, tekan <strong>SEMAK JAWAPAN</strong>. 🌟
 </div>
 
 <section class="game">
@@ -85,9 +91,8 @@ footer{margin-top:25px;background:#fff;border:6px solid #ffd54f;border-radius:30
 
  <div id="azan" class="task">
   <h2>🕌 Susun Lafaz Azan</h2>
-  <p>Seret kad di bawah ke ruang jawapan mengikut susunan yang betul.</p>
-  <div id="azanPool"></div>
-  <div class="dropzone" id="azanDrop"></div>
+  <p>Pilih nombor <strong>1 hingga 12</strong> pada setiap lafaz mengikut susunan azan yang betul.</p>
+  <div id="azanPool" class="number-list"></div>
   <div class="actions">
    <button class="check" onclick="check('azan')">✓ SEMAK JAWAPAN</button>
    <button class="reset" onclick="resetGame('azan')">↻ RESET</button>
@@ -156,44 +161,159 @@ function shuffle(a){
  return a;
 }
 function makeItem(x,game,index){
- const d=document.createElement("div");d.className="item";d.draggable=true;
- d.dataset.id=String(index);d.dataset.game=game;
+ const d=document.createElement("div");
+ d.className="item";d.dataset.id=String(index);d.dataset.game=game;
  d.innerHTML=`<span class="num">•</span><span>${x[2]}</span><span class="arabic">${x[1]}</span>`;
- d.addEventListener("dragstart",e=>{
-   d.classList.add("dragging");
-   e.dataTransfer.setData("text/plain",String(index));
- });
- d.addEventListener("dragend",()=>d.classList.remove("dragging"));
  return d;
 }
-function setup(game){
- const pool=document.getElementById(game+"Pool"),drop=document.getElementById(game+"Drop");
- pool.innerHTML="";drop.innerHTML="";
- shuffle([...data[game].map((x,index)=>({x,index}))]).forEach(obj=>{
-  pool.appendChild(makeItem(obj.x,game,obj.index));
-});
- [pool,drop].forEach(zone=>{
-  zone.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("over")});
-  zone.addEventListener("dragleave",()=>drop.classList.remove("over"));
-  zone.addEventListener("drop",e=>{
-   e.preventDefault();drop.classList.remove("over");
-   const id=e.dataTransfer.getData("text/plain");
-   const item=document.querySelector(`.item[data-game="${game}"][data-id="${id}"]`);
-   if(item) zone.appendChild(item);
-  });
+
+function updateAzanNumberOptions(){
+ const selects=[...document.querySelectorAll('#azanPool .number-select')];
+ const used=new Set(selects.map(s=>s.value).filter(Boolean));
+ selects.forEach(select=>{
+   const current=select.value;
+   select.innerHTML='<option value="">?</option>';
+   for(let i=1;i<=data.azan.length;i++){
+     if(!used.has(String(i)) || String(i)===current){
+       const option=document.createElement('option');
+       option.value=String(i);
+       option.textContent=String(i);
+       select.appendChild(option);
+     }
+   }
+   select.value=current;
  });
 }
-function check(game){
- const drop=document.getElementById(game+"Drop");
+
+function makeAzanNumberItem(x,index){
+ const d=document.createElement("div");
+ d.className="number-item";
+ d.dataset.id=String(index);
+ d.dataset.game="azan";
+
+ const select=document.createElement("select");
+ select.className="number-select";
+ select.setAttribute("aria-label","Nombor susunan azan");
+ select.innerHTML='<option value="">?</option>'+Array.from({length:data.azan.length},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join("");
+ select.addEventListener('change',()=>updateAzanNumberOptions());
+
+ const lafaz=document.createElement("div");
+ lafaz.className="lafaz";
+ lafaz.innerHTML=`${x[2]}<div class="arabic">${x[1]}</div>`;
+
+ const label=document.createElement("div");
+ label.style.fontWeight="900";
+ label.style.color="#1565c0";
+ label.textContent="Nombor";
+
+ d.append(select,lafaz,label);
+ return d;
+}
+
+function setupAzan(){
+ const pool=document.getElementById("azanPool");
+ pool.innerHTML="";
+ shuffle([...data.azan.map((x,index)=>({x,index}))]).forEach(obj=>{
+   pool.appendChild(makeAzanNumberItem(obj.x,obj.index));
+ });
+ updateAzanNumberOptions();
+}
+
+function setupIqamat(){
+ const pool=document.getElementById("iqamatPool"),drop=document.getElementById("iqamatDrop");
+ pool.innerHTML="";drop.innerHTML="";
+ shuffle([...data.iqamat.map((x,index)=>({x,index}))]).forEach(obj=>{
+   pool.appendChild(makeItem(obj.x,"iqamat",obj.index));
+ });
+ [pool,drop].forEach(zone=>{
+   zone.ondragover=e=>{e.preventDefault();drop.classList.add("over")};
+   zone.ondragleave=()=>drop.classList.remove("over");
+   zone.ondrop=e=>{
+     e.preventDefault();drop.classList.remove("over");
+     const id=e.dataTransfer.getData("text/plain");
+     const item=document.querySelector(`.item[data-game="iqamat"][data-id="${id}"]`);
+     if(item) zone.appendChild(item);
+   };
+ });
+ // Restore drag handlers for Iqamat only.
+ pool.querySelectorAll(".item").forEach(d=>{
+   d.draggable=true;
+   d.addEventListener("dragstart",e=>{
+     d.classList.add("dragging");
+     e.dataTransfer.setData("text/plain",d.dataset.id);
+   });
+   d.addEventListener("dragend",()=>d.classList.remove("dragging"));
+ });
+}
+
+function setup(game){
+ if(game==="azan") setupAzan();
+ else setupIqamat();
+}
+
+function normalizeLafaz(text){
+ return text.replace(/\s+/g," ").trim();
+}
+
+function checkAzan(){
+ const cards=[...document.querySelectorAll("#azanPool .number-item")];
+ const fb=document.getElementById("azanFeedback");
+ const selected=cards.map(card=>({
+   id:Number(card.dataset.id),
+   number:card.querySelector(".number-select").value
+ }));
+
+ if(selected.some(x=>x.number==="")){
+   fb.textContent="⚠️ Sila nomborkan semua lafaz dari 1 hingga 12 dahulu.";
+   fb.style.color="#d35400";
+   return;
+ }
+
+ const numbers=selected.map(x=>Number(x.number));
+ const unique=new Set(numbers);
+ if(unique.size!==data.azan.length || Math.min(...numbers)!==1 || Math.max(...numbers)!==data.azan.length){
+   fb.textContent="⚠️ Setiap nombor 1 hingga 12 mesti digunakan sekali sahaja.";
+   fb.style.color="#d35400";
+   return;
+ }
+
+ // IMPORTANT: Compare the actual lafaz, not the original card ID.
+ // This means identical repeated lafaz are interchangeable.
+ const byNumber=Array(data.azan.length);
+ selected.forEach(x=>{byNumber[Number(x.number)-1]=data.azan[x.id][2];});
+ const correct=data.azan.map(x=>x[2]);
+ const ok=byNumber.every((lafaz,i)=>normalizeLafaz(lafaz)===normalizeLafaz(correct[i]));
+
+ if(ok){
+   fb.textContent="🎉 Tahniah! Susunan azan kamu betul! Hebat!";
+   fb.style.color="#188038";
+ }else{
+   fb.textContent="❌ Ada susunan yang belum betul. Semak semula nombor 1 hingga 12.";
+   fb.style.color="#d93025";
+ }
+}
+
+function checkIqamat(){
+ const drop=document.getElementById("iqamatDrop");
  const got=[...drop.querySelectorAll(".item")].map(x=>Number(x.dataset.id));
- const answer=data[game].map((x,index)=>index);
- const fb=document.getElementById(game+"Feedback");
+ const answer=data.iqamat.map((x,index)=>index);
+ const fb=document.getElementById("iqamatFeedback");
  if(got.length!==answer.length){fb.textContent="⚠️ Susun semua kad dahulu!";fb.style.color="#d35400";return}
  const ok=got.every((v,i)=>v===answer[i]);
  if(ok){fb.textContent="🎉 Tahniah! Susunan kamu betul! Hebat!";fb.style.color="#188038"}
  else{fb.textContent="❌ Belum betul. Cuba susun semula dan semak sekali lagi.";fb.style.color="#d93025"}
 }
-function resetGame(game){setup(game);document.getElementById(game+"Feedback").textContent=""}
+
+function check(game){
+ if(game==="azan") checkAzan();
+ else checkIqamat();
+}
+
+function resetGame(game){
+ setup(game);
+ document.getElementById(game+"Feedback").textContent="";
+}
+
 function showGame(game,btn){
  document.getElementById("azan").classList.toggle("hidden",game!=="azan");
  document.getElementById("iqamat").classList.toggle("hidden",game!=="iqamat");
